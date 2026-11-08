@@ -12,7 +12,8 @@
     "e2e:devnet": "tsx scripts/e2e-devnet.ts",
     "typecheck": "tsc --noEmit",
     "screenshots": "tsx scripts/screenshots.ts",
-    "gen:keys": "tsx scripts/gen-keys.ts"
+    "gen:keys": "tsx scripts/gen-keys.ts",
+    "test:adapter": "tsx scripts/adapter-devnet.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",

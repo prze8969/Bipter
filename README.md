@@ -4,7 +4,7 @@ Buy Now Pay Later store on Solana devnet (MLH Solana Hackathon, DeFi track).
 
 The merchant is paid in full instantly from a USDC liquidity pool. The buyer pays 4 equal installments; installments 2–4 are pulled automatically through a **capped SPL token delegation**. A Solana payment costs a fraction of a cent instead of ~3% + a fixed fee for cards, so the saving goes to the buyer. Every loan has a receipt with the exact fee breakdown and a Solana Explorer link (`?cluster=devnet`) for each transaction.
 
-> **Status:** the app targets devnet by default, but the end-to-end test has **not yet passed** against a deployed program (the program is not deployed yet). See `STATUS.md` → "Known broken".
+> **Status:** the program is deployed on devnet at [`Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8`](https://explorer.solana.com/address/Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8?cluster=devnet). `npm run e2e:devnet` passes (19/19), and the app's adapter test passes (11/11). Not yet verified: clicking through the UI with a real wallet extension. See `STATUS.md`.
 
 ## Real vs mocked
 
@@ -12,8 +12,9 @@ The merchant is paid in full instantly from a USDC liquidity pool. The buyer pay
 |---|---|
 | Money | Devnet **test USDC**: Bipter's own SPL mint (6 decimals), no real value |
 | Wallet | Your own Phantom or Solflare wallet on devnet (Phantom: Settings > Developer Settings > Testnet Mode) |
-| Network fees | Paid in devnet SOL by your wallet ("Get devnet SOL" button or faucet.solana.com) |
-| Loans, installments, credit limit | Bipter Anchor program on devnet (`program/lib.rs`), read from on-chain accounts. **Not yet verified: e2e has not passed** |
+| Network fees | Paid in devnet SOL by your wallet ("Get devnet SOL" sends 0.2 SOL from a sponsor key while it lasts, otherwise use faucet.solana.com) |
+| Loans, installments, credit limit | Bipter Anchor program on devnet (`program/lib.rs`), read from on-chain accounts. Verified by `e2e:devnet` |
+| Loan labels | Product name / item-delivery split are display labels kept in your browser. All amounts come from chain |
 | Products and delivery | Demo listings. Nothing ships |
 | Amazon comparison | Dated snapshot with a source link, illustrative. Hidden until a human verifies the values |
 | Local currency | Small display-only line next to USDC amounts, from an FX rate |
@@ -30,6 +31,7 @@ cp .env.example .env.local
 2. `npm run gen:keys`: generates throwaway admin, mint-authority and sponsor keys into `.env.local` and prints their public keys. Fund admin and sponsor with devnet SOL at faucet.solana.com.
 3. `npm run setup:devnet`: creates the test USDC mint, the merchant token account, the pool (60 s interval, 120 s grace) and 1,000 USDC of liquidity, and writes the mint and merchant into `.env.local`.
 4. `npm run e2e:devnet`: new buyer, create loan, force due, pay 3 installments, assert balances.
+   `npm run test:adapter`: runs the app's own devnet adapter on-chain, with a keypair standing in for the wallet.
 5. `npm run dev`
 
 ## Checks

@@ -198,20 +198,33 @@ export function createDevnetAdapter(connection: Connection, wallet: Wallet): Cha
 
     async getLoanTxs(loanId) {
       const sigs = await connection.getSignaturesForAddress(new PublicKey(loanId), { limit: 50 }, "confirmed");
-      const ok = sigs.filter((s) => !s.err).reverse(); // oldest first
+      const ok = sigs.filter((s) => !s.err);
       if (!ok.length) return [];
       const txs = await connection.getParsedTransactions(ok.map((s) => s.signature), { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
-      const out: TxRecord[] = [];
-      let idx = 0;
+      // RPC order is not reliably chronological: classify, then sort by slot (create first on ties).
+      const rank = { create: 0, force_due: 1, installment: 2 } as const;
+      const rows: (TxRecord & { slot: number })[] = [];
       txs.forEach((t, i) => {
         const logs = t?.meta?.logMessages ?? [];
-        const at = (t?.blockTime ?? ok[i].blockTime ?? 0) * 1000;
-        const base = { sig: ok[i].signature, at, amount: 0, feeLamports: t?.meta?.fee ?? null };
-        if (logs.some((l) => l.includes("Instruction: CreateLoan"))) out.push({ ...base, kind: "create", index: (idx = 1) });
-        else if (logs.some((l) => l.includes("Instruction: PayInstallment"))) out.push({ ...base, kind: "installment", index: ++idx });
-        else if (logs.some((l) => l.includes("Instruction: AdminForceDue"))) out.push({ ...base, kind: "force_due" });
+        const kind = logs.some((l) => l.includes("Instruction: CreateLoan"))
+          ? "create"
+          : logs.some((l) => l.includes("Instruction: PayInstallment"))
+            ? "installment"
+            : logs.some((l) => l.includes("Instruction: AdminForceDue"))
+              ? "force_due"
+              : null;
+        if (!kind) return;
+        rows.push({
+          kind, sig: ok[i].signature, slot: t?.slot ?? ok[i].slot,
+          at: (t?.blockTime ?? ok[i].blockTime ?? 0) * 1000, amount: 0, feeLamports: t?.meta?.fee ?? null,
+        });
       });
-      return out;
+      rows.sort((a, b) => a.slot - b.slot || rank[a.kind as keyof typeof rank] - rank[b.kind as keyof typeof rank]);
+      let next = 2;
+      return rows.map(({ slot: _slot, ...r }) => {
+        void _slot;
+        return r.kind === "create" ? { ...r, index: 1 } : r.kind === "installment" ? { ...r, index: next++ } : r;
+      });
     },
 
     async payInFull(amount) {

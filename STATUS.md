@@ -1,45 +1,41 @@
 # Bipter — STATUS
 
-Last updated: Sun 8 Nov 2026, ~20:25 IST.
+Last updated: Sun 8 Nov 2026, ~21:10 IST.
 
-**Bottom line:** the app is built for Solana devnet (default `NEXT_PUBLIC_CHAIN_MODE=devnet`, wallet adapter, on-chain reads, real transactions), but it has **not yet run against a deployed program**. `program/lib.rs` is not deployed, `.env.local` has no program ID, mint or keys, so `npm run e2e:devnet` fails at its first step. Until e2e passes, nothing on-chain is verified.
+**Bottom line:** the Bipter program is deployed on Solana devnet and `npm run e2e:devnet` **passes (19/19 checks)** against it. The app's own devnet adapter also passes a separate on-chain test (11/11). The connected-wallet UI has **not** been clicked through with a real Phantom/Solflare extension yet (Playwright cannot load one).
 
-## Devnet + dark mode update (19:55–20:25)
+## Devnet deployment
+
+| What | Address |
+|---|---|
+| Program | [`Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8`](https://explorer.solana.com/address/Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8?cluster=devnet) (built + deployed in Solana Playground) |
+| Test USDC mint (6 decimals) | `ECVHLKwQRXuRtFzcsBRpY1W1wHSHTu21KRTsAViN1CKU` |
+| Pool PDA | `8q9kkFFyFBDyVti4kfgDbJRHRsrtNqhMbbdAjy2m5JAj` (interval 60 s, grace 120 s) |
+| Vault | `DvcZdQZerAcaBEnjJF1ca8nvKGPVVhY16fjXD4E2nzki`, seeded with 1,000 test USDC |
+| Merchant | `QGYFGWoiHTZGRMf8rDbWkBqvgau7qyLL9R8SShnp5kw` |
+| Admin | `E3HLjynBGCTpTkH75ruQMfpZyVeWEb4DUXkLTiVhx9fR` |
+
+## Verification
 
 | Item | Result | Evidence | Notes |
 |---|---|---|---|
-| `npm run build` | ✅ | `✓ Compiled successfully`, 10 routes incl. `/api/faucet`, `/api/sol`, `/api/admin/force-due` | Harmless `bigint: Failed to load bindings, pure JS will be used` warning |
+| `npm run setup:devnet` | ✅ | program deployed; mint created; merchant ATA; pool initialised; `deposited 1000 USDC liquidity`; `vault ...: 1000 USDC` | Confirms the hand-built instructions match the deployed program |
+| `npm run e2e:devnet` | ✅ | `E2E PASSED`, 19 PASS lines. Loan `FSZ3F6SmyYak1MC71UQ2MZpB25ehDQ58Aa7r9KdwrAm` | Checks buyer −26.1375, merchant +25.50 paid at checkout, vault +0.6375 net, early `pay_installment` rejected (NotDue), paid 1→4, Repaid, limit 100→125, outstanding 0, delegation 0 |
+| `npm run test:adapter` (app adapter, keypair standing in for the wallet) | ✅ after fix | `ADAPTER TEST PASSED`, 11 PASS | Two concurrent loans; delegation cap = 3+3 installments; delegate = pool PDA; getProgramAccounts listing; friendly "Installment not due yet"; collect via adapter; receipt tx history; real fee 5000 lamports; pay in full |
+| Bug found by adapter test | ✅ fixed | First run: receipt history order `force_due, installment#1, create#1` | RPC signature order is not chronological. Now sorted by slot; installments numbered 2–4 explicitly |
+| API `/api/faucet` | ✅ | minted 100 USDC to a fresh wallet (balance read back `"100"`); second call → `Faucet cooldown: try again in 29s`; bad key → `wallet is not a valid public key` | |
+| API `/api/sol` | ✅ | `{"via":"sponsor"}`, fresh wallet balance 200000000 lamports | Changed from 1 SOL to 0.2 SOL per request: sponsor only has ~0.7 SOL left, and the devnet RPC airdrop fallback is closed (`410 The RPC faucet is closed`) |
+| API `/api/admin/force-due` | ✅ | on a repaid loan → `Loan is not active` | Success path covered by e2e (same instruction) |
+| `npm run build` | ✅ | `✓ Compiled successfully` | Harmless `bigint: Failed to load bindings` warning |
 | `npx tsc --noEmit` | ✅ | exit 0 | |
-| `npm run lint` | ✅ | no output (one unused-var warning found and fixed) | |
-| `npm run check:catalog` | ⚠️ | `7 products, 0 verified, 0 failing.` | No Amazon snapshots yet (human task) |
-| `npm run e2e:devnet` | ❌ | `E2E ERROR: NEXT_PUBLIC_PROGRAM_ID is empty in .env.local` | Blocked: program not deployed, no keys. Script is written but has never run |
-| Playwright, light + dark, 390 + 1280 | ✅ (not connected) | `npm run screenshots` → `24 screenshots`, `No console errors.` Opened dashboard-dark-390, product-dark-1280, checkout-light-390, cart-dark-390, cart-light-390, store-dark-1280, receipt-light-1280 | Playwright has no wallet extension, so **connected states (balances, loans, receipts) are not screenshot-verified** |
-| Layout fixes from screenshots | ✅ | Cart summary amounts wrapped at 390px → `whitespace-nowrap`; checkout modal showed 0.00 balances when disconnected → hidden; X-ray showed network fee as "0.00 USDC" → removed (SOL fee stays in the breakdown) | |
-| Wallet adapter (Phantom, Solflare, devnet) | ⚠️ | Connect button renders in nav and on dashboard; modal opens | Not tested with a real wallet extension here |
-| Browser keypair + fake balances removed | ✅ | `lib/chain/wallet.ts` deleted; balances come from `getTokenAccountBalance` / `getBalance` | |
-| Dark mode | ✅ | Class strategy (`@custom-variant dark`), inline head script sets `.dark` before paint from localStorage or `prefers-color-scheme`; nav toggle saves `bipter.theme` | Contrast: muted text #9a9993 on #0b0b0c ≈ 7:1, light muted #6b6b66 on #f7f7f4 ≈ 5:1 |
+| `npm run lint` | ✅ | no output | |
+| `npm run check:catalog` | ⚠️ | `7 products, 0 verified, 0 failing.` | No Amazon snapshots (human task) |
+| Playwright light + dark, 390 + 1280 | ✅ (not connected) | `24 screenshots`, `No console errors.` | Connected states not screenshot-tested |
 
-### How devnet mode works (code, unverified on-chain)
-- `lib/chain/program.ts`: instructions and account decoding built by hand from `program/lib.rs` (Anchor discriminators = sha256 of `global:<ix>` / `account:<Name>`), so no IDL file is needed. **Risk:** if the deployed program differs from `program/lib.rs`, these will not match.
-- Checkout tx: create ATAs (idempotent) → `init_credit` if missing → SPL `approve` (delegate = pool PDA, amount = what is still owed on active loans + 3 × new installment, because approve replaces the previous delegation) → `create_loan`. The buyer's wallet signs and pays the SOL fee.
-- Loans: `getProgramAccounts` filtered by size + buyer. Receipt tx list + Explorer links: `getSignaturesForAddress(loan)`, classified by Anchor log lines. Real fee from `meta.fee`.
-- Only display labels (product name, item/delivery split) live in localStorage; without them the receipt shows "Item + delivery" combined.
-- `/api/faucet`: mints 100 test USDC (30 s cooldown per wallet, in-memory). `/api/sol`: 1 SOL from `SPONSOR_SECRET`, then airdrop fallback, then error pointing to faucet.solana.com (10 min cooldown). `/api/admin/force-due`: demo fast-forward signed by `ADMIN_SECRET`.
-- Removed: sponsored / gasless fees and `/api/sponsor`.
-
-### What is needed to make e2e pass (human)
-1. Deploy `program/lib.rs` in Solana Playground (it has **never been compiled**) and put the program ID in `.env.local` as `NEXT_PUBLIC_PROGRAM_ID`.
-2. `npm run gen:keys` (fills empty `*_SECRET` values, prints public keys only), then fund the admin and sponsor public keys with devnet SOL.
-3. `npm run setup:devnet` (mint, merchant, pool, 1,000 USDC liquidity; writes mint + merchant into `.env.local`).
-4. `npm run e2e:devnet`, then restart the app.
-
-## Earlier milestones
-- M0/M1 (simulated UI): build, tsc, lint and screenshots passed at the time. The simulated adapter is now **local development only** (`NEXT_PUBLIC_CHAIN_MODE=simulated`) and still needs a connected wallet.
-
-## Known broken
-- **e2e:devnet has never passed.** On-chain behaviour (loan creation, delegated pulls, balances, credit limit) is unverified.
-- `program/lib.rs` has never been compiled.
-- Connected-wallet UI states are not screenshot-tested.
-- Faucet / SOL rate limits are in-memory (reset on restart, per server instance).
-- No verified Amazon prices → no "Save" chips or Amazon bars.
-- `.env.local` was switched from `simulated` to `devnet` (only that flag; no secrets were written).
+## Known broken / not verified
+- **Connected wallet UI not clicked through** with a real Phantom/Solflare extension. The adapter logic behind it is tested on-chain (above), but wallet popups, the connect modal and the UI refresh after each transaction are not.
+- `/api/sol` depends on the sponsor's SOL (≈0.7 SOL left, 0.2 per request). Once empty, users must use faucet.solana.com (the error message links to it).
+- Faucet and SOL cooldowns are in-memory (reset on restart, per server instance).
+- No verified Amazon prices, so no "Save" chips and no Amazon bars.
+- Loan labels (product name, item/delivery split) are browser-local display data. In another browser, the receipt shows "Loan Abcd…" and "Item + delivery" combined. All amounts still come from chain.
+- `mark_default` is in the program but has no UI and is not tested.

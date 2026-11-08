@@ -16,7 +16,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("11111111111111111111111111111111");
+declare_id!("Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8");
 
 pub const START_LIMIT: u64 = 100_000_000; // 100 USDC
 pub const LIMIT_STEP: u64 = 25_000_000; // +25 USDC per repaid loan
