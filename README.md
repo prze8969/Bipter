@@ -1,6 +1,16 @@
 # Bipter — Pay in 4 on Solana
 
-Buy Now Pay Later store on Solana devnet (MLH Solana Hackathon, DeFi track).
+**Buy now, pay in 4, and see every cent.** A Buy Now Pay Later store on Solana (MLH Solana Hackathon, DeFi track).
+
+Pay-later services usually hide what you pay: card fees, interest and late fees are buried in the price. Bipter puts it all on-chain.
+
+- **The shop is paid in full, instantly.** A USDC liquidity pool pays the merchant the full price at checkout.
+- **You pay 4 equal parts.** The first one today; parts 2–4 are collected automatically through a **capped token approval** (exactly 3 installments, nothing more).
+- **Every fee is visible.** A "Fee X-ray" shows item, delivery, a 1% platform fee and 1.5% flat interest. No hidden charges.
+- **Cheaper to run.** A Solana payment costs a fraction of a cent, versus roughly 3% plus a fixed fee for cards, and that saving goes to the buyer.
+- **Verifiable.** Every loan has a receipt with an Explorer link for each payment. Repay on time and your credit limit grows.
+
+> **Status:** the program is deployed on devnet at [`Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8`](https://explorer.solana.com/address/Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8?cluster=devnet). `npm run e2e:devnet` passes (19/19), and the app's adapter test passes (11/11). Checkout has been clicked through with Phantom on devnet. See `STATUS.md`.
 
 ## First time here? Connect your wallet in 2 minutes
 
@@ -21,10 +31,6 @@ Bipter runs on Solana **devnet** (the test network). Everything uses test tokens
 - *"Unknown"* token: older wallet caches may not show the tUSDC name yet.
 
 Stuck? Open the **Troubleshoot** button (`/help`) in the app. MetaMask's Solana support is experimental and has crashed during checkout, so use Phantom.
-
-The merchant is paid in full instantly from a USDC liquidity pool. The buyer pays 4 equal installments; installments 2–4 are pulled automatically through a **capped SPL token delegation**. A Solana payment costs a fraction of a cent instead of ~3% + a fixed fee for cards, so the saving goes to the buyer. Every loan has a receipt with the exact fee breakdown and a Solana Explorer link (`?cluster=devnet`) for each transaction.
-
-> **Status:** the program is deployed on devnet at [`Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8`](https://explorer.solana.com/address/Gr4cJ334mV89q7k6A7hQfqDve94u9AEqAucp3vgkf3H8?cluster=devnet). `npm run e2e:devnet` passes (19/19), and the app's adapter test passes (11/11). Checkout has been clicked through with Phantom on devnet. See `STATUS.md`.
 
 ## Real vs mocked
 
