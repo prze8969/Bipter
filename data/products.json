@@ -1,0 +1,93 @@
+[
+  {
+    "id": "earbuds",
+    "name": "Wireless Earbuds",
+    "icon": "Headphones",
+    "item_price": 24.0,
+    "delivery": 1.5,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "charger-65w",
+    "name": "65W USB-C Charger",
+    "icon": "PlugZap",
+    "item_price": 18.0,
+    "delivery": 1.0,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "mech-keyboard",
+    "name": "Mechanical Keyboard",
+    "icon": "Keyboard",
+    "item_price": 45.0,
+    "delivery": 2.5,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "phone-stand",
+    "name": "Aluminium Phone Stand",
+    "icon": "Smartphone",
+    "item_price": 9.0,
+    "delivery": 1.0,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "water-bottle",
+    "name": "Insulated Water Bottle",
+    "icon": "GlassWater",
+    "item_price": 14.0,
+    "delivery": 1.5,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "backpack",
+    "name": "Everyday Backpack",
+    "icon": "Backpack",
+    "item_price": 32.0,
+    "delivery": 2.0,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  },
+  {
+    "id": "usb-c-cable",
+    "name": "USB-C Cable, 2 m",
+    "icon": "Cable",
+    "item_price": 6.0,
+    "delivery": 0.5,
+    "ships_from": "Demo listing",
+    "amazon_price": null,
+    "amazon_delivery": null,
+    "amazon_source_url": null,
+    "amazon_snapshot_date": null,
+    "verified": false
+  }
+]
