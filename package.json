@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "screenshots": "tsx scripts/screenshots.ts",
     "gen:keys": "tsx scripts/gen-keys.ts",
-    "test:adapter": "tsx scripts/adapter-devnet.ts"
+    "test:adapter": "tsx scripts/adapter-devnet.ts",
+    "token:metadata": "tsx scripts/token-metadata.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.30.1",
@@ -33,6 +34,9 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.6.0",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.6.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -38,8 +38,21 @@ Last updated: Sun 8 Nov 2026, ~21:10 IST.
 - **Phantom is the recommended wallet** (connect screen + checkout hint). Not re-tested with MetaMask after the change.
 - The public devnet RPC rate-limits (429s seen in e2e and adapter tests). For the demo, a private devnet RPC in `NEXT_PUBLIC_RPC_URL` is safer.
 
+## UI + token name update (~21:50)
+
+| Item | Result | Evidence | Notes |
+|---|---|---|---|
+| Token name on devnet | ✅ | `npm run token:metadata` → `metadata exists: "Bipter Test USD" (tUSDC)` | Metaplex metadata, signed by the mint authority. No logo (empty URI). First run's read-back failed on RPC lag; the script now retries |
+| Phantom checkout (human) | ✅ | User reported "it works, everything does" | Phantom showed the expected approval warning (now explained on /help) |
+| New home hero "Bipter on Solana", Connect wallet, Troubleshoot | ✅ | screenshots dashboard-*-{390,768,1280,1920,3840} | Small grey hint text removed |
+| /help page | ✅ | wallets, devnet setup, test money, "unsafe" warnings explained, common errors, real vs mocked, contract addresses | |
+| Footer + /privacy + /terms | ✅ | GitHub, LinkedIn, Instagram, email links; legal pages | Legal text is a plain-English prototype policy, not reviewed by a lawyer |
+| Responsive 390 → 4K | ✅ | `90 screenshots`, `No console errors.` (9 pages × light/dark × 390, 768, 1280, 1920, 3840) | Container is rem-based; root font scales at ≥2200px and ≥3000px. Fixed: 4K content stuck in a narrow column; footer badge stretched; tall product image on tablets |
+| build / tsc / lint | ✅ | `✓ Compiled successfully`, tsc exit 0, eslint clean | |
+| check:catalog | ⚠️ | `7 products, 0 verified, 0 failing.` | |
+
 ## Known broken / not verified
-- **Connected wallet UI not clicked through** with a real Phantom/Solflare extension. The adapter logic behind it is tested on-chain (above), but wallet popups, the connect modal and the UI refresh after each transaction are not.
+- Connected-wallet UI: clicked through by the user with Phantom (reported working). Not automated; Solflare not tested.
 - `/api/sol` depends on the sponsor's SOL (≈0.7 SOL left, 0.2 per request). Once empty, users must use faucet.solana.com (the error message links to it).
 - Faucet and SOL cooldowns are in-memory (reset on restart, per server instance).
 - No verified Amazon prices, so no "Save" chips and no Amazon bars.

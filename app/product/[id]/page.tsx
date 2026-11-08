@@ -40,7 +40,7 @@ export default function ProductPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
         <section className="grid content-start gap-4">
-          <div className="card grid aspect-[4/3] place-items-center">
+          <div className="card grid aspect-[16/9] place-items-center lg:aspect-[4/3]">
             <ProductIcon name={p.icon} size={72} />
           </div>
           <div>

@@ -6,7 +6,7 @@ import { ArrowRight, Check, Circle, Clock, ExternalLink, Loader2, X } from "luci
 import { useChain, useCurrency } from "./providers";
 import { explorerTx, type Loan, type TxRecord } from "@/lib/chain";
 import { INSTALLMENTS, INTERVAL_SECS, type Breakdown } from "@/lib/pricing";
-import { Row, WalletButton } from "./ui";
+import { Row, TroubleshootButton, WalletButton } from "./ui";
 
 export const PHANTOM_HINT = "Recommended: Phantom (or Solflare). In Phantom: Settings > Developer Settings > Testnet Mode > Devnet";
 
@@ -433,7 +433,7 @@ export function CheckoutModal({ job, onClose, onDone }: { job: CheckoutJob; onCl
         {!connected ? (
           <div className="mt-6 grid justify-items-center gap-2">
             <WalletButton />
-            <p className="text-center text-xs text-muted">{PHANTOM_HINT}</p>
+            <TroubleshootButton />
           </div>
         ) : finished ? (
           <button className="btn btn-dark mt-6 w-full text-base" onClick={onClose}>

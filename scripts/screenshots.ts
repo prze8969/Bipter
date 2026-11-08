@@ -14,15 +14,20 @@ const PAGES: [string, string][] = [
   ["product", "/product/mech-keyboard"],
   ["cart", "/cart"],
   ["receipt", "/receipt/11111111111111111111111111111111"],
+  ["help", "/help"],
+  ["privacy", "/privacy"],
+  ["terms", "/terms"],
 ];
+const WIDTHS = (process.env.WIDTHS ?? "390,768,1280,1920,3840").split(",").map(Number);
 
 async function main() {
   const browser = await chromium.launch();
   const errors: string[] = [];
   let n = 0;
   for (const theme of ["light", "dark"] as const) {
-    for (const width of [390, 1280]) {
-      const ctx = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, colorScheme: theme });
+    for (const width of WIDTHS) {
+      const height = width < 768 ? 844 : width < 1280 ? 1024 : width >= 3000 ? 2160 : width >= 1900 ? 1080 : 900;
+      const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme });
       await ctx.addInitScript((t) => {
         localStorage.setItem("bipter.theme", t);
         localStorage.setItem("bipter.cart.v1", JSON.stringify([{ productId: "earbuds", qty: 1, plan: "full" }, { productId: "backpack", qty: 1, plan: "pay4" }]));

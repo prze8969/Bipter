@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, ExternalLink, Fuel, Loader2, Plus } from "lucide-react";
 import { useChain, useCurrency } from "@/components/providers";
-import { CurrencySwitcher, WalletButton, shortAddr } from "@/components/ui";
-import { CreditMeter, LoanList, PHANTOM_HINT } from "@/components/finance";
+import { CurrencySwitcher, TroubleshootButton, WalletButton, shortAddr } from "@/components/ui";
+import { CreditMeter, LoanList } from "@/components/finance";
 import { explorerAddr, explorerTx } from "@/lib/chain";
 
 export default function Dashboard() {
@@ -16,17 +16,37 @@ export default function Dashboard() {
 
   if (!connected)
     return (
-      <section className="card mx-auto grid max-w-lg justify-items-center gap-4 p-8 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">Pay in 4 on Solana</h1>
-        <p className="text-muted">
-          Connect a devnet wallet to get test USDC, buy something and pay it back in 4 installments. Every step is a real devnet transaction.
-        </p>
-        <WalletButton />
-        <p className="rounded-xl bg-bg px-3 py-2 text-xs text-muted">{PHANTOM_HINT}</p>
-        <Link href="/store" className="text-sm underline underline-offset-4">
-          Or browse the store first
-        </Link>
-      </section>
+      <div className="grid gap-6">
+        <section className="grid min-h-[62vh] content-center gap-8 py-10">
+          <h1 className="font-semibold leading-[0.95] tracking-tight" style={{ fontSize: "clamp(3rem, 9vw, 9rem)" }}>
+            Bipter
+            <br />
+            <span className="text-accent">on Solana</span>
+          </h1>
+          <p className="max-w-3xl font-medium leading-snug" style={{ fontSize: "clamp(1.25rem, 2.2vw, 2rem)" }}>
+            Buy now, pay in 4. The merchant is paid in full today, you pay four equal parts, and every cent is on-chain.
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <WalletButton size="lg" />
+            <Link href="/store" className="btn btn-ghost h-14 px-7 text-base">
+              Browse the store <ArrowRight size={18} />
+            </Link>
+            <TroubleshootButton />
+          </div>
+        </section>
+        <section className="grid gap-3 sm:grid-cols-3">
+          {[
+            ["Merchant paid instantly", "The pool pays the full price at checkout."],
+            ["4 equal payments", "Payments 2 to 4 are collected automatically."],
+            ["Fees you can see", "Every fee and every transaction, on Explorer."],
+          ].map(([t, d]) => (
+            <div key={t} className="card p-6 sm:p-8">
+              <p className="text-xl font-semibold tracking-tight sm:text-2xl">{t}</p>
+              <p className="mt-2 text-base">{d}</p>
+            </div>
+          ))}
+        </section>
+      </div>
     );
 
   async function act(kind: "usdc" | "sol") {

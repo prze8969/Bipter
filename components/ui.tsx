@@ -4,22 +4,41 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import {
-  Backpack, Cable, GlassWater, Headphones, Keyboard, Moon, Package, PlugZap, ShoppingBag, Smartphone, Sun, type LucideIcon,
+  Backpack, Cable, GlassWater, Headphones, Keyboard, LifeBuoy, Moon, Package, PlugZap, ShoppingBag, Smartphone, Sun, type LucideIcon,
 } from "lucide-react";
 import { useCart, useChain, useCurrency, useTheme } from "./providers";
+import { SUPPORTED, type CurrencyCode } from "@/lib/currency";
+
+const LABELS = {
+  "change-wallet": "Change wallet",
+  connecting: "Connecting…",
+  "copy-address": "Copy address",
+  copied: "Copied",
+  disconnect: "Disconnect",
+  "has-wallet": "Connect",
+  "no-wallet": "Connect wallet",
+} as const;
 
 /** Wallet button renders client-only (wallet state does not exist on the server). */
-export const WalletButton = dynamic(
-  () => import("@solana/wallet-adapter-react-ui").then((m) => m.WalletMultiButton),
-  { ssr: false, loading: () => <span className="inline-block h-9 w-28 rounded-xl border border-line" /> },
+const BaseButton = dynamic(
+  () => import("@solana/wallet-adapter-react-ui").then((m) => m.BaseWalletMultiButton),
+  { ssr: false, loading: () => <span className="inline-block h-9 w-32 rounded-xl border border-line" /> },
 );
+
+export function WalletButton({ size = "sm" }: { size?: "sm" | "lg" }) {
+  return (
+    <span className={size === "lg" ? "wallet-lg" : undefined}>
+      <BaseButton labels={LABELS} />
+    </span>
+  );
+}
 
 export function ThemeToggle() {
   const { theme, toggle } = useTheme();
   return (
     <button
       onClick={toggle}
-      className="grid h-9 w-9 place-items-center rounded-xl border border-line text-muted transition-colors hover:text-fg"
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-muted transition-colors hover:text-fg"
       aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       title={theme === "dark" ? "Light mode" : "Dark mode"}
     >
@@ -27,7 +46,6 @@ export function ThemeToggle() {
     </button>
   );
 }
-import { SUPPORTED, type CurrencyCode } from "@/lib/currency";
 
 const ICONS: Record<string, LucideIcon> = { Backpack, Cable, GlassWater, Headphones, Keyboard, PlugZap, Smartphone };
 
@@ -41,7 +59,7 @@ export function ModeBadge() {
   const devnet = mode === "devnet";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${
         devnet ? "border-ok/30 text-ok" : "border-line text-muted"
       }`}
       title={devnet ? "Solana devnet. Test tokens, no real value." : "LOCAL DEV ONLY: simulated in your browser. No transactions are sent."}
@@ -52,38 +70,44 @@ export function ModeBadge() {
   );
 }
 
+export function Logo() {
+  return (
+    <Link href="/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight">
+      <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-white">
+        <ShoppingBag size={16} strokeWidth={2} />
+      </span>
+      Bipter
+    </Link>
+  );
+}
+
 export function Nav() {
   const path = usePathname();
   const { count } = useCart();
   const items = [
-    { href: "/", label: "Dashboard" },
+    { href: "/", label: "Home" },
     { href: "/store", label: "Store" },
     { href: "/cart", label: count ? `Cart (${count})` : "Cart" },
+    { href: "/help", label: "Help" },
   ];
+  const links = items.map((it) => {
+    const active = it.href === "/" ? path === "/" : path.startsWith(it.href);
+    return (
+      <Link
+        key={it.href}
+        href={it.href}
+        className={`rounded-lg px-2.5 py-1.5 transition-colors ${active ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
+      >
+        {it.label}
+      </Link>
+    );
+  });
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-bg/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-white">
-            <ShoppingBag size={16} strokeWidth={2} />
-          </span>
-          Bipter
-        </Link>
-        <nav className="ml-auto hidden items-center gap-1 text-sm md:flex">
-          {items.map((it) => {
-            const active = it.href === "/" ? path === "/" : path.startsWith(it.href);
-            return (
-              <Link
-                key={it.href}
-                href={it.href}
-                className={`rounded-lg px-2.5 py-1.5 transition-colors ${active ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
-              >
-                {it.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+      <div className="wrap flex h-16 items-center gap-3">
+        <Logo />
+        <nav className="ml-6 hidden items-center gap-1 text-sm md:flex">{links}</nav>
+        <div className="ml-auto flex items-center gap-2">
           <span className="hidden sm:inline-flex">
             <ModeBadge />
           </span>
@@ -91,19 +115,8 @@ export function Nav() {
           <WalletButton />
         </div>
       </div>
-      <nav className="mx-auto flex max-w-5xl items-center gap-1 px-4 pb-3 text-sm md:hidden">
-        {items.map((it) => {
-          const active = it.href === "/" ? path === "/" : path.startsWith(it.href);
-          return (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={`rounded-lg px-2.5 py-1.5 transition-colors ${active ? "bg-fg text-bg" : "text-muted hover:text-fg"}`}
-            >
-              {it.label}
-            </Link>
-          );
-        })}
+      <nav className="wrap flex items-center gap-1 overflow-x-auto pb-3 text-sm md:hidden">
+        {links}
         <span className="ml-auto sm:hidden">
           <ModeBadge />
         </span>
@@ -112,24 +125,77 @@ export function Nav() {
   );
 }
 
+const SOCIAL = [
+  { label: "GitHub", value: "prze8969", href: "https://github.com/prze8969" },
+  { label: "LinkedIn", value: "pranav-shewale-prze8969", href: "https://www.linkedin.com/in/pranav-shewale-prze8969/" },
+  { label: "Instagram", value: "@prze8969", href: "https://www.instagram.com/prze8969/" },
+  { label: "Email", value: "shewalepranav66@gmail.com", href: "mailto:shewalepranav66@gmail.com" },
+];
+
 export function Footer() {
-  const { mode } = useChain();
+  const year = 2026;
   return (
-    <footer className="mx-auto mt-16 max-w-5xl px-4 pb-12 text-xs leading-relaxed text-muted">
-      <div className="card p-4">
-        <p className="mb-2 font-semibold text-fg">What is real and what is mocked</p>
-        <ul className="grid gap-1 sm:grid-cols-2">
-          {mode === "simulated" && <li className="font-semibold text-accent">LOCAL DEV MODE: everything below is simulated in your browser.</li>}
-          <li>Money: devnet test USDC (our own SPL mint, no real value).</li>
-          <li>Wallet: your own Phantom or Solflare wallet on devnet.</li>
-          <li>Loans, installments &amp; credit limit: Bipter program on Solana devnet.</li>
-          <li>Network fees: paid in devnet SOL by your wallet.</li>
-          <li>Products &amp; delivery: demo listings. Nothing ships.</li>
-          <li>Amazon comparison: dated snapshot with source link, illustrative. Hidden until verified.</li>
-          <li>Local currency: display only, from an FX rate.</li>
-        </ul>
+    <footer className="mt-24 border-t border-line">
+      <div className="wrap grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid content-start gap-3">
+          <Logo />
+          <p className="max-w-xs text-sm text-muted">Pay in 4 on Solana devnet. Built for the MLH Solana Hackathon.</p>
+          <span className="justify-self-start">
+            <ModeBadge />
+          </span>
+        </div>
+        <FooterCol title="Product">
+          <FooterLink href="/store">Store</FooterLink>
+          <FooterLink href="/">Dashboard</FooterLink>
+          <FooterLink href="/cart">Cart</FooterLink>
+          <FooterLink href="/help">Help &amp; troubleshooting</FooterLink>
+        </FooterCol>
+        <FooterCol title="Legal">
+          <FooterLink href="/privacy">Privacy policy</FooterLink>
+          <FooterLink href="/terms">Terms &amp; conditions</FooterLink>
+          <FooterLink href="/help#real-vs-mocked">What is real vs mocked</FooterLink>
+        </FooterCol>
+        <FooterCol title="Contact">
+          {SOCIAL.map((s) => (
+            <a key={s.label} href={s.href} target={s.href.startsWith("mailto") ? undefined : "_blank"} rel="noreferrer" className="group text-sm">
+              <span className="text-muted">{s.label} · </span>
+              <span className="break-all underline-offset-4 group-hover:underline">{s.value}</span>
+            </a>
+          ))}
+        </FooterCol>
+      </div>
+      <div className="border-t border-line">
+        <div className="wrap flex flex-wrap items-center justify-between gap-2 py-5 text-xs text-muted">
+          <span>© {year} Bipter · Pranav Shewale</span>
+          <span>Devnet prototype. Test tokens only, no real money.</span>
+        </div>
       </div>
     </footer>
+  );
+}
+
+function FooterCol({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="grid content-start gap-2.5">
+      <p className="text-sm font-semibold">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="text-sm text-muted transition-colors hover:text-fg">
+      {children}
+    </Link>
+  );
+}
+
+export function TroubleshootButton() {
+  return (
+    <Link href="/help" className="inline-flex items-center gap-1.5 rounded-xl border border-line px-3 py-2 text-sm text-muted transition-colors hover:text-fg">
+      <LifeBuoy size={15} /> Troubleshoot
+    </Link>
   );
 }
 

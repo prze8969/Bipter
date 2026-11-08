@@ -16,7 +16,7 @@ export default function Store() {
         </div>
         <CurrencySwitcher />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
         {products.map((p) => {
           const b = productBreakdown(p);
           const a = amazonTotal(p);
