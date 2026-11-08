@@ -6,13 +6,13 @@ import { CurrencySwitcher, ProductIcon } from "@/components/ui";
 import { amazonTotal, productBreakdown, products, savingsVsAmazon } from "@/lib/pricing";
 
 export default function Store() {
-  const { fmt } = useCurrency();
+  const { fmt, local } = useCurrency();
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Store</h1>
-          <p className="mt-1 text-sm text-muted">Final prices include delivery, fees and interest. Pay in 4, no surprises.</p>
+          <p className="mt-1 text-sm text-muted">Prices in devnet test USDC, including delivery, fees and interest. Pay in 4, no surprises.</p>
         </div>
         <CurrencySwitcher />
       </div>
@@ -22,12 +22,13 @@ export default function Store() {
           const a = amazonTotal(p);
           const save = savingsVsAmazon(p);
           return (
-            <Link key={p.id} href={`/product/${p.id}`} className="card fade-up flex flex-col p-4 transition-colors hover:border-[#cfcec7] sm:p-5">
+            <Link key={p.id} href={`/product/${p.id}`} className="card fade-up flex flex-col p-4 transition-colors hover:border-line-strong sm:p-5">
               <div className="grid aspect-square place-items-center rounded-xl bg-bg text-fg">
                 <ProductIcon name={p.icon} size={40} />
               </div>
               <p className="mt-4 text-sm font-medium leading-snug">{p.name}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{fmt(b.totalOwed)}</p>
+              <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">{fmt(b.totalOwed)}</p>
+              {local(b.totalOwed) && <p className="text-xs text-muted tabular-nums">{local(b.totalOwed)}</p>}
               <p className="text-xs text-muted tabular-nums">or 4 × {fmt(b.installment)}</p>
               <div className="mt-auto pt-3 text-xs">
                 {a != null && save != null ? (

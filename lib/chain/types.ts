@@ -5,31 +5,32 @@ export type ChainMode = "devnet" | "simulated";
 export type LoanStatus = "Active" | "Repaid" | "Defaulted";
 
 export type TxRecord = {
-  kind: "create" | "installment" | "pay_in_full" | "faucet";
+  kind: "create" | "installment" | "force_due" | "pay_in_full" | "faucet" | "sol";
   /** installment number 1..4 for create/installment */
   index?: number;
   /** real signature in devnet mode; null in simulated mode */
   sig: string | null;
   at: number; // ms
   amount: number; // micro
-  /** network fee in lamports, real from tx meta in devnet mode, estimate in simulated */
+  /** network fee in lamports (from tx meta in devnet mode) */
   feeLamports: number | null;
 };
 
 export type Loan = {
+  /** loan PDA (devnet) or local id (simulated) */
   id: string;
   buyer: string;
   merchant: string;
   label: string;
-  productIds: string[];
   breakdown: Breakdown;
+  /** false when item/delivery split is not known (only item+delivery total is on-chain) */
+  splitKnown: boolean;
   totalOwed: number; // micro
   installment: number; // micro
   paid: number; // 0..4
   nextDue: number; // ms
   status: LoanStatus;
   createdAt: number;
-  txs: TxRecord[];
 };
 
 export type CreditProfile = {
@@ -37,6 +38,8 @@ export type CreditProfile = {
   outstanding: number; // micro
   repaidCount: number;
   defaulted: boolean;
+  /** false until the on-chain CreditProfile account is created (first loan) */
+  exists: boolean;
 };
 
 export type CreateLoanInput = {
@@ -47,14 +50,16 @@ export type CreateLoanInput = {
 
 export interface ChainAdapter {
   mode: ChainMode;
-  getWallet(): Promise<string>;
   getBalance(): Promise<number>; // micro USDC
+  getSolBalance(): Promise<number>; // lamports
   faucet(): Promise<TxRecord>;
+  getSol(): Promise<TxRecord & { via: string }>;
   getCreditProfile(): Promise<CreditProfile>;
-  createLoan(input: CreateLoanInput): Promise<Loan>;
-  payNextInstallment(loanId: string): Promise<Loan>;
-  forceDue(loanId: string): Promise<Loan>;
+  createLoan(input: CreateLoanInput): Promise<{ loan: Loan; sig: string | null }>;
+  payNextInstallment(loanId: string): Promise<{ sig: string | null }>;
+  forceDue(loanId: string): Promise<{ sig: string | null }>;
   listLoans(): Promise<Loan[]>;
+  getLoanTxs(loanId: string): Promise<TxRecord[]>;
   /** Plain USDC transfer to the merchant (cart "Pay in full"). */
   payInFull(amount: number, label: string): Promise<TxRecord>;
   getMerchantBalance(): Promise<number>;

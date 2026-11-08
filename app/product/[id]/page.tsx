@@ -13,7 +13,7 @@ export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const p = getProduct(id);
-  const { fmt } = useCurrency();
+  const { fmt, local } = useCurrency();
   const cart = useCart();
   const [job, setJob] = useState<CheckoutJob | null>(null);
   const [added, setAdded] = useState(false);
@@ -47,6 +47,7 @@ export default function ProductPage() {
             <h1 className="text-3xl font-semibold tracking-tight">{p.name}</h1>
             <p className="mt-1 text-sm text-muted">{p.ships_from} · nothing actually ships</p>
             <p className="mt-4 text-4xl font-semibold tracking-tight tabular-nums">{fmt(b.totalOwed)}</p>
+            {local(b.totalOwed) && <p className="text-xs text-muted">{local(b.totalOwed)} · display only</p>}
             <p className="text-sm text-muted tabular-nums">4 × {fmt(b.installment)}, first one today</p>
             {a != null && save != null ? (
               <p className="mt-2 text-sm">
@@ -88,12 +89,11 @@ export default function ProductPage() {
           <FeeXray
             b={b}
             amazon={a != null ? { item: toMicro(p.amazon_price!), delivery: toMicro(p.amazon_delivery!) } : null}
-            networkFeeMicro={0}
           />
           <div className="card p-5">
             <p className="mb-2 text-sm font-semibold">Exact breakdown</p>
             <BreakdownRows b={b} networkFeeLamports={EST_NETWORK_FEE_LAMPORTS} />
-            <p className="mt-2 text-xs text-muted">Network fee is an estimate (2 signatures × 5,000 lamports) until a real devnet tx exists.</p>
+            <p className="mt-2 text-xs text-muted">Network fee is an estimate (1 signature × 5,000 lamports). Your receipt shows the real fee read from the transaction.</p>
           </div>
           <div className="card p-5">
             <p className="mb-3 text-sm font-semibold">How we kept it low</p>

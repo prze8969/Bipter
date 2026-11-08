@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --bg: #f7f7f4;
   --card: #ffffff;
@@ -9,6 +11,21 @@
   --accent: #ff4f00;
   --accent-soft: #fff1ea;
   --ok: #1a7f4b;
+  --line-strong: #cfcec7;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b0b0c;
+  --card: #141415;
+  --fg: #f2f1ec;
+  --muted: #9a9993;
+  --line: #262624;
+  --line-strong: #3a3a37;
+  --accent: #ff5a14;
+  --accent-soft: #2a1408;
+  --ok: #3ccf86;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -20,6 +37,7 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-ok: var(--ok);
+  --color-line-strong: var(--line-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -68,7 +86,7 @@ body {
 }
 .btn-dark {
   background: var(--fg);
-  color: #fff;
+  color: var(--bg);
 }
 .btn-dark:hover {
   opacity: 0.9;
@@ -79,7 +97,7 @@ body {
   color: var(--fg);
 }
 .btn-ghost:hover {
-  border-color: #cfcec7;
+  border-color: var(--line-strong);
 }
 
 @keyframes fade-up {
@@ -94,4 +112,39 @@ body {
 }
 .fade-up {
   animation: fade-up 220ms ease both;
+}
+
+/* wallet adapter, matched to the minimal look */
+.wallet-adapter-button-trigger {
+  background: var(--fg) !important;
+  color: var(--bg) !important;
+  height: 2.25rem !important;
+  padding: 0 0.875rem !important;
+  border-radius: 0.75rem !important;
+  font-family: inherit !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+.wallet-adapter-button-trigger .wallet-adapter-button-start-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+}
+.wallet-adapter-dropdown-list {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+.wallet-adapter-modal-wrapper {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+.wallet-adapter-modal-title,
+.wallet-adapter-modal-list .wallet-adapter-button {
+  color: var(--fg);
+  font-family: inherit;
+}
+.wallet-adapter-modal-list .wallet-adapter-button:not([disabled]):hover {
+  background: var(--bg);
 }

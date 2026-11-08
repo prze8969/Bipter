@@ -64,7 +64,7 @@ export default function CartPage() {
                   <button
                     key={plan}
                     onClick={() => cart.setPlan(l.productId, plan)}
-                    className={`rounded-lg px-3 py-1.5 transition-colors ${l.plan === plan ? "bg-fg text-white" : "text-muted"}`}
+                    className={`rounded-lg px-3 py-1.5 transition-colors ${l.plan === plan ? "bg-fg text-bg" : "text-muted"}`}
                   >
                     {plan === "pay4" ? "Pay in 4" : "Pay in full"}
                   </button>

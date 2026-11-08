@@ -1,22 +1,34 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getAdapter, CHAIN_MODE, type ChainAdapter, type CreditProfile, type Loan } from "@/lib/chain";
+import { ConnectionProvider, WalletProvider, useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import { CHAIN_MODE, RPC_URL, missingConfig, type ChainAdapter, type CreditProfile, type Loan } from "@/lib/chain";
+import { createDevnetAdapter } from "@/lib/chain/devnet";
+import { createSimulatedAdapter } from "@/lib/chain/simulated";
 import { detectCurrency, fetchRates, FALLBACK_RATES, formatMoney, SUPPORTED, type CurrencyCode, type Rates } from "@/lib/currency";
-import { MICRO } from "@/lib/pricing";
+import { MICRO, formatUsdc } from "@/lib/pricing";
+
+import "@solana/wallet-adapter-react-ui/styles.css";
 
 /* ---------------- chain ---------------- */
 
 type ChainState = {
   adapter: ChainAdapter;
   mode: typeof CHAIN_MODE;
-  ready: boolean;
+  connected: boolean;
   wallet: string | null;
-  balance: number;
+  ready: boolean;
+  usdc: number; // micro
+  sol: number; // lamports
   credit: CreditProfile | null;
   loans: Loan[];
   merchantBalance: number;
   error: string | null;
+  missing: string[];
   refresh: () => Promise<void>;
 };
 
@@ -28,8 +40,10 @@ type CurrencyState = {
   code: CurrencyCode;
   setCode: (c: CurrencyCode) => void;
   rates: Rates;
-  /** format micro-USDC in the display currency */
+  /** primary format: USDC */
   fmt: (micro: number) => string;
+  /** small display-only local-currency line, e.g. "≈ ₹4,582" (empty when USD) */
+  local: (micro: number) => string;
 };
 
 const CurrencyCtx = createContext<CurrencyState | null>(null);
@@ -51,32 +65,101 @@ type CartState = {
 
 const CartCtx = createContext<CartState | null>(null);
 
+/* ---------------- theme ---------------- */
+
+export type Theme = "light" | "dark";
+type ThemeState = { theme: Theme; toggle: () => void };
+const ThemeCtx = createContext<ThemeState | null>(null);
+export const THEME_KEY = "bipter.theme";
+
 const CART_KEY = "bipter.cart.v1";
 const CUR_KEY = "bipter.currency.v1";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const adapter = useMemo(() => getAdapter(), []);
+  const wallets = useMemo(
+    () => [new PhantomWalletAdapter(), new SolflareWalletAdapter({ network: WalletAdapterNetwork.Devnet })],
+    [],
+  );
+  return (
+    <ThemeProvider>
+      <ConnectionProvider endpoint={RPC_URL} config={{ commitment: "confirmed" }}>
+        <WalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <AppState>{children}</AppState>
+          </WalletModalProvider>
+        </WalletProvider>
+      </ConnectionProvider>
+    </ThemeProvider>
+  );
+}
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<Theme>("light");
+  useEffect(() => {
+    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+  }, []);
+  const toggle = useCallback(() => {
+    setTheme((t) => {
+      const next: Theme = t === "dark" ? "light" : "dark";
+      document.documentElement.classList.toggle("dark", next === "dark");
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  return <ThemeCtx.Provider value={{ theme, toggle }}>{children}</ThemeCtx.Provider>;
+}
+
+function AppState({ children }: { children: React.ReactNode }) {
+  const { connection } = useConnection();
+  const wallet = useWallet();
+  const { publicKey, sendTransaction } = wallet;
+
+  const adapter = useMemo(
+    () =>
+      CHAIN_MODE === "simulated"
+        ? createSimulatedAdapter(publicKey)
+        : createDevnetAdapter(connection, { publicKey, sendTransaction }),
+    [connection, publicKey, sendTransaction],
+  );
+  const missing = useMemo(() => (CHAIN_MODE === "devnet" ? missingConfig() : []), []);
 
   /* chain */
   const [ready, setReady] = useState(false);
-  const [wallet, setWallet] = useState<string | null>(null);
-  const [balance, setBalance] = useState(0);
+  const [usdc, setUsdc] = useState(0);
+  const [sol, setSol] = useState(0);
   const [credit, setCredit] = useState<CreditProfile | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [merchantBalance, setMerchantBalance] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
+    if (!publicKey) {
+      setUsdc(0);
+      setSol(0);
+      setCredit(null);
+      setLoans([]);
+      setReady(true);
+      return;
+    }
+    if (missing.length) {
+      setError(`Devnet config missing: ${missing.join(", ")}`);
+      setReady(true);
+      return;
+    }
     try {
-      const [w, b, c, l, m] = await Promise.all([
-        adapter.getWallet(),
+      const [b, s, c, l, m] = await Promise.all([
         adapter.getBalance(),
+        adapter.getSolBalance(),
         adapter.getCreditProfile(),
         adapter.listLoans(),
         adapter.getMerchantBalance(),
       ]);
-      setWallet(w);
-      setBalance(b);
+      setUsdc(b);
+      setSol(s);
       setCredit(c);
       setLoans(l);
       setMerchantBalance(m);
@@ -86,9 +169,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     } finally {
       setReady(true);
     }
-  }, [adapter]);
+  }, [adapter, publicKey, missing]);
 
   useEffect(() => {
+    setReady(false);
     refresh();
   }, [refresh]);
 
@@ -119,7 +203,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const fmt = useCallback((micro: number) => formatMoney(micro / MICRO, code, rates.rates[code], locale), [code, rates, locale]);
+  const fmt = useCallback((micro: number) => `${formatUsdc(micro)} USDC`, []);
+  const local = useCallback(
+    (micro: number) => (code === "USD" ? "" : `≈ ${formatMoney(micro / MICRO, code, rates.rates[code], locale)}`),
+    [code, rates, locale],
+  );
 
   /* cart */
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -164,19 +252,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const chain: ChainState = {
     adapter,
     mode: CHAIN_MODE,
+    connected: !!publicKey,
+    wallet: publicKey?.toBase58() ?? null,
     ready,
-    wallet,
-    balance,
+    usdc,
+    sol,
     credit,
     loans,
     merchantBalance,
     error,
+    missing,
     refresh,
   };
 
   return (
     <ChainCtx.Provider value={chain}>
-      <CurrencyCtx.Provider value={{ code, setCode, rates, fmt }}>
+      <CurrencyCtx.Provider value={{ code, setCode, rates, fmt, local }}>
         <CartCtx.Provider value={cart}>{children}</CartCtx.Provider>
       </CurrencyCtx.Provider>
     </ChainCtx.Provider>
@@ -196,5 +287,10 @@ export function useCurrency() {
 export function useCart() {
   const c = useContext(CartCtx);
   if (!c) throw new Error("useCart outside Providers");
+  return c;
+}
+export function useTheme() {
+  const c = useContext(ThemeCtx);
+  if (!c) throw new Error("useTheme outside Providers");
   return c;
 }

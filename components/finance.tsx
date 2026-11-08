@@ -6,7 +6,9 @@ import { ArrowRight, Check, Circle, Clock, ExternalLink, Loader2, X } from "luci
 import { useChain, useCurrency } from "./providers";
 import { explorerTx, type Loan, type TxRecord } from "@/lib/chain";
 import { INSTALLMENTS, INTERVAL_SECS, type Breakdown } from "@/lib/pricing";
-import { Row } from "./ui";
+import { Row, WalletButton } from "./ui";
+
+export const PHANTOM_HINT = "Phantom: Settings > Developer Settings > Testnet Mode";
 
 /* ---------------- time ---------------- */
 
@@ -72,7 +74,7 @@ export function LoanList({ only = "active" }: { only?: "active" | "all" }) {
   return (
     <div className="grid gap-3">
       {list.map((l) => (
-        <Link key={l.id} href={`/receipt/${l.id}`} className="card fade-up flex items-center gap-4 p-4 transition-colors hover:border-[#cfcec7]">
+        <Link key={l.id} href={`/receipt/${l.id}`} className="card fade-up flex items-center gap-4 p-4 transition-colors hover:border-line-strong">
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{l.label}</p>
             <p className="text-sm text-muted">
@@ -100,12 +102,18 @@ function Dots({ paid }: { paid: number }) {
 
 /* ---------------- breakdown ---------------- */
 
-export function BreakdownRows({ b, networkFeeLamports }: { b: Breakdown; networkFeeLamports: number | null }) {
+export function BreakdownRows({ b, networkFeeLamports, splitKnown = true }: { b: Breakdown; networkFeeLamports: number | null; splitKnown?: boolean }) {
   const { fmt } = useCurrency();
   return (
     <div className="text-sm">
-      <Row label="Item" value={fmt(b.item)} />
-      <Row label="Delivery" value={fmt(b.delivery)} />
+      {splitKnown ? (
+        <>
+          <Row label="Item" value={fmt(b.item)} />
+          <Row label="Delivery" value={fmt(b.delivery)} />
+        </>
+      ) : (
+        <Row label="Item + delivery" value={fmt(b.merchantAmount)} />
+      )}
       <Row label="Platform fee (1%)" value={fmt(b.platformFee)} />
       <Row label="Interest (1.5% flat)" value={fmt(b.interest)} />
       <Row
@@ -113,7 +121,7 @@ export function BreakdownRows({ b, networkFeeLamports }: { b: Breakdown; network
         muted
         value={
           <span>
-            {networkFeeLamports == null ? "—" : `${(networkFeeLamports / 1e9).toFixed(6)} SOL`} · paid by Bipter
+            {networkFeeLamports == null ? "—" : `${(networkFeeLamports / 1e9).toFixed(6)} SOL`} · paid in SOL by your wallet
           </span>
         }
       />
@@ -128,14 +136,13 @@ export function BreakdownRows({ b, networkFeeLamports }: { b: Breakdown; network
 
 type Seg = { label: string; value: number; tone: string };
 
-export function FeeXray({ b, amazon, networkFeeMicro }: { b: Breakdown; amazon: { item: number; delivery: number } | null; networkFeeMicro: number }) {
+export function FeeXray({ b, amazon }: { b: Breakdown; amazon: { item: number; delivery: number } | null }) {
   const { fmt } = useCurrency();
   const ours: Seg[] = [
     { label: "Item", value: b.item, tone: "bg-fg" },
     { label: "Delivery", value: b.delivery, tone: "bg-[#8a8a84]" },
     { label: "Platform fee", value: b.platformFee, tone: "bg-accent" },
     { label: "Interest", value: b.interest, tone: "bg-[#ffb08a]" },
-    { label: "Network fee", value: networkFeeMicro, tone: "bg-ok" },
   ];
   const theirs: Seg[] | null = amazon
     ? [
@@ -171,7 +178,7 @@ export function FeeXray({ b, amazon, networkFeeMicro }: { b: Breakdown; amazon: 
           </span>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted">Network fee is shown for transparency and paid by Bipter, so it is not in your total.</p>
+      <p className="mt-2 text-xs text-muted">Not shown: the network fee (well under a cent), paid in devnet SOL by your wallet and listed in the breakdown.</p>
     </div>
   );
 }
@@ -224,21 +231,22 @@ export function SchedulePreview({ installment }: { installment: number }) {
 
 /* ---------------- receipt schedule ---------------- */
 
-export function LoanSchedule({ loan }: { loan: Loan }) {
+export function LoanSchedule({ loan, txs }: { loan: Loan; txs: TxRecord[] }) {
   const { fmt } = useCurrency();
   const { mode } = useChain();
   const now = useNow();
-  const txFor = (i: number): TxRecord | undefined => loan.txs.find((t) => t.index === i);
+  const txFor = (i: number): TxRecord | undefined => txs.find((t) => t.index === i);
   return (
     <ol className="grid gap-2 text-sm">
       {Array.from({ length: INSTALLMENTS }).map((_, k) => {
         const i = k + 1;
         const t = txFor(i);
+        const paid = i <= loan.paid;
         const isNext = loan.status === "Active" && i === loan.paid + 1;
         const due = isNext && now >= loan.nextDue;
         return (
           <li key={i} className={`flex items-center gap-3 rounded-xl border p-3 ${isNext ? "border-fg" : "border-line"}`}>
-            {t ? (
+            {paid ? (
               <Check size={18} className="text-ok" />
             ) : isNext ? (
               <Clock size={18} className={due ? "text-accent" : "text-muted"} />
@@ -250,8 +258,10 @@ export function LoanSchedule({ loan }: { loan: Loan }) {
                 Installment {i} · {fmt(loan.installment)}
               </p>
               <p className="text-xs text-muted">
-                {t
-                  ? `Paid ${new Date(t.at).toLocaleTimeString()}`
+                {paid
+                  ? t
+                    ? `Paid ${new Date(t.at).toLocaleTimeString()}`
+                    : "Paid (loading transaction…)"
                   : isNext
                     ? due
                       ? "Due now, ready to collect"
@@ -265,7 +275,7 @@ export function LoanSchedule({ loan }: { loan: Loan }) {
               <a href={explorerTx(t.sig)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs underline underline-offset-4">
                 Explorer <ExternalLink size={12} />
               </a>
-            ) : t && mode === "simulated" ? (
+            ) : paid && mode === "simulated" ? (
               <span className="text-xs text-muted">simulated</span>
             ) : null}
           </li>
@@ -284,47 +294,55 @@ export type CheckoutJob = {
 };
 
 type StepState = "idle" | "run" | "done" | "fail";
+type Done = { label: string; sig: string | null };
 
 export function CheckoutModal({ job, onClose, onDone }: { job: CheckoutJob; onClose: () => void; onDone: (loanIds: string[]) => void }) {
-  const { adapter, refresh, balance, credit } = useChain();
-  const { fmt } = useCurrency();
+  const { adapter, refresh, usdc, sol, credit, connected, mode } = useChain();
+  const { fmt, local } = useCurrency();
   const steps = [
-    ...(job.fullAmount > 0 ? [{ key: "full", label: `Pay ${fmt(job.fullAmount)} in full to merchant` }] : []),
+    ...(job.fullAmount > 0 ? [{ key: "full", label: `Pay ${fmt(job.fullAmount)} in full to the merchant` }] : []),
     ...job.pay4.map((p, i) => ({
       key: `loan${i}`,
-      label: `${p.label}: approve capped delegation, pay installment 1, pool pays merchant`,
+      label: `${p.label}: approve capped delegation (3 installments), pay installment 1, pool pays merchant`,
     })),
-    { key: "receipt", label: "Write receipt" },
+    { key: "receipt", label: "Read the receipt back from chain" },
   ];
   const [state, setState] = useState<Record<string, StepState>>({});
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [done, setDone] = useState<Done[]>([]);
+  const [finished, setFinished] = useState<string[] | null>(null);
 
   const dueToday = job.fullAmount + job.pay4.reduce((s, p) => s + p.breakdown.installment, 0);
   const newDebt = job.pay4.reduce((s, p) => s + p.breakdown.totalOwed, 0);
   const available = credit ? credit.limit - credit.outstanding : 0;
+  const noSol = mode === "devnet" && connected && sol === 0;
 
   async function run() {
     setRunning(true);
     setError(null);
     const ids: string[] = [];
     try {
-      if (job.fullAmount > 0) {
+      if (job.fullAmount > 0 && state.full !== "done") {
         setState((s) => ({ ...s, full: "run" }));
-        await adapter.payInFull(job.fullAmount, job.fullLabel);
+        const t = await adapter.payInFull(job.fullAmount, job.fullLabel);
+        setDone((d) => [...d, { label: "Pay in full", sig: t.sig }]);
         setState((s) => ({ ...s, full: "done" }));
       }
       for (let i = 0; i < job.pay4.length; i++) {
         const k = `loan${i}`;
+        if (state[k] === "done") continue;
         setState((s) => ({ ...s, [k]: "run" }));
-        const loan = await adapter.createLoan(job.pay4[i]);
+        const { loan, sig } = await adapter.createLoan(job.pay4[i]);
         ids.push(loan.id);
+        setDone((d) => [...d, { label: job.pay4[i].label, sig }]);
         setState((s) => ({ ...s, [k]: "done" }));
       }
       setState((s) => ({ ...s, receipt: "run" }));
       await refresh();
       setState((s) => ({ ...s, receipt: "done" }));
-      onDone(ids);
+      if (ids.length) onDone(ids);
+      else setFinished(ids);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setState((s) => {
@@ -333,13 +351,14 @@ export function CheckoutModal({ job, onClose, onDone }: { job: CheckoutJob; onCl
         return next;
       });
       await refresh();
+    } finally {
       setRunning(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/30 sm:place-items-center" role="dialog" aria-modal>
-      <div className="card fade-up w-full max-w-md rounded-b-none p-6 sm:rounded-2xl">
+    <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center" role="dialog" aria-modal>
+      <div className="card fade-up max-h-[92vh] w-full max-w-md overflow-y-auto rounded-b-none p-6 sm:rounded-2xl">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold">Checkout</p>
           <button onClick={onClose} disabled={running} className="rounded-lg p-1 text-muted hover:text-fg" aria-label="Close">
@@ -349,17 +368,19 @@ export function CheckoutModal({ job, onClose, onDone }: { job: CheckoutJob; onCl
 
         <div className="mt-4 rounded-xl bg-bg p-4 text-sm">
           <Row label="Due today" value={fmt(dueToday)} strong />
+          {local(dueToday) && <p className="-mt-1 text-right text-xs text-muted">{local(dueToday)}</p>}
           {newDebt > 0 && <Row label="Later (3 auto-collected installments per loan)" value={fmt(newDebt - (dueToday - job.fullAmount))} muted />}
-          <Row label="Your balance" value={fmt(balance)} muted />
-          {newDebt > 0 && <Row label="Credit available" value={fmt(available)} muted />}
+          {connected && <Row label="Your USDC" value={fmt(usdc)} muted />}
+          {connected && mode === "devnet" && <Row label="Your SOL (network fees)" value={`${(sol / 1e9).toFixed(4)} SOL`} muted />}
+          {connected && newDebt > 0 && <Row label="Credit available" value={fmt(available)} muted />}
         </div>
 
         {job.pay4.length > 0 && (
           <div className="mt-4 text-sm">
             <p className="mb-2 text-muted">Schedule</p>
             {job.pay4.map((p, i) => (
-              <div key={i} className="flex justify-between py-1">
-                <span className="truncate pr-2">{p.label}</span>
+              <div key={i} className="flex justify-between gap-2 py-1">
+                <span className="truncate">{p.label}</span>
                 <span className="shrink-0 tabular-nums">
                   4 × {fmt(p.breakdown.installment)} · every {INTERVAL_SECS}s
                 </span>
@@ -390,13 +411,43 @@ export function CheckoutModal({ job, onClose, onDone }: { job: CheckoutJob; onCl
           })}
         </ol>
 
-        {error && <p className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent">{error}</p>}
+        {done.some((d) => d.sig) && mode === "devnet" && (
+          <ul className="mt-4 grid gap-1 text-xs">
+            {done.map((d, i) =>
+              d.sig ? (
+                <li key={i}>
+                  <a className="inline-flex items-center gap-1 underline underline-offset-4" href={explorerTx(d.sig)} target="_blank" rel="noreferrer">
+                    {d.label}: view on Explorer <ExternalLink size={11} />
+                  </a>
+                </li>
+              ) : null,
+            )}
+          </ul>
+        )}
 
-        <button className="btn btn-primary mt-6 w-full text-base" onClick={run} disabled={running}>
-          {running ? <Loader2 size={18} className="animate-spin" /> : null}
-          {running ? "Processing…" : error ? "Try again" : `Confirm and pay ${fmt(dueToday)}`}
-        </button>
-        <p className="mt-3 text-center text-xs text-muted">Network fees are sponsored. You pay no SOL.</p>
+        {error && <p className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent">{error}</p>}
+        {noSol && !error && (
+          <p className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent">You have 0 devnet SOL for network fees. Use “Get devnet SOL” on the dashboard.</p>
+        )}
+
+        {!connected ? (
+          <div className="mt-6 grid justify-items-center gap-2">
+            <WalletButton />
+            <p className="text-center text-xs text-muted">{PHANTOM_HINT}</p>
+          </div>
+        ) : finished ? (
+          <button className="btn btn-dark mt-6 w-full text-base" onClick={onClose}>
+            Done
+          </button>
+        ) : (
+          <button className="btn btn-primary mt-6 w-full text-base" onClick={run} disabled={running}>
+            {running ? <Loader2 size={18} className="animate-spin" /> : null}
+            {running ? "Approve in your wallet…" : error ? "Try again" : `Confirm and pay ${fmt(dueToday)}`}
+          </button>
+        )}
+        <p className="mt-3 text-center text-xs text-muted">
+          {mode === "devnet" ? "Your wallet pays a tiny network fee in devnet SOL." : "LOCAL DEV: simulated, nothing is sent."}
+        </p>
       </div>
     </div>
   );

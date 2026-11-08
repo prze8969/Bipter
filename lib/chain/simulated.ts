@@ -1,11 +1,12 @@
-import { Keypair } from "@solana/web3.js";
+import { Keypair, type PublicKey } from "@solana/web3.js";
 import { EST_NETWORK_FEE_LAMPORTS, INSTALLMENTS, INTERVAL_SECS, MICRO } from "../pricing";
+
+/** LOCAL DEVELOPMENT ONLY (NEXT_PUBLIC_CHAIN_MODE=simulated). Never used in devnet mode. */
 import type { ChainAdapter, CreateLoanInput, CreditProfile, Loan, TxRecord } from "./types";
-import { loadOrCreateKeypair } from "./wallet";
 
 /** Same rules as program/lib.rs, kept in memory + localStorage. No real transactions. */
 
-const STATE_KEY = "bipter.sim.v1";
+const STATE_KEY = "bipter.sim.v2";
 const START_LIMIT = 100 * MICRO;
 const LIMIT_STEP = 25 * MICRO;
 const FAUCET_AMOUNT = 100 * MICRO;
@@ -16,7 +17,8 @@ type SimState = {
   vault: number;
   merchant: string;
   credit: CreditProfile;
-  loans: Loan[];
+  loans: (Loan & { txs: TxRecord[] })[];
+  sol: number;
 };
 
 function freshState(): SimState {
@@ -25,8 +27,9 @@ function freshState(): SimState {
     merchantBalance: 0,
     vault: 0,
     merchant: Keypair.generate().publicKey.toBase58(),
-    credit: { limit: START_LIMIT, outstanding: 0, repaidCount: 0, defaulted: false },
+    credit: { limit: START_LIMIT, outstanding: 0, repaidCount: 0, defaulted: false, exists: true },
     loans: [],
+    sol: 0,
   };
 }
 
@@ -71,14 +74,29 @@ export function resetSimulated() {
   }
 }
 
-export const simulatedAdapter: ChainAdapter = {
+export function createSimulatedAdapter(wallet: PublicKey | null): ChainAdapter {
+  const me = () => {
+    if (!wallet) throw new Error("Connect a wallet first");
+    return wallet.toBase58();
+  };
+  return {
   mode: "simulated",
 
-  async getWallet() {
-    return loadOrCreateKeypair().publicKey.toBase58();
+  async getSolBalance() {
+    me();
+    return load().sol;
+  },
+
+  async getSol() {
+    me();
+    const s = load();
+    s.sol += 1_000_000_000;
+    save(s);
+    return { ...tx("sol", 0), via: "simulated" };
   },
 
   async getBalance() {
+    me();
     return load().balance;
   },
 
@@ -113,14 +131,14 @@ export const simulatedAdapter: ChainAdapter = {
     s.merchantBalance += breakdown.merchantAmount;
     s.credit.outstanding += breakdown.totalOwed;
 
-    const buyer = loadOrCreateKeypair().publicKey.toBase58();
-    const loan: Loan = {
+    const buyer = me();
+    const loan: Loan & { txs: TxRecord[] } = {
       id: `sim-${now.toString(36)}`,
       buyer,
       merchant: s.merchant,
       label: input.label,
-      productIds: input.productIds,
       breakdown,
+      splitKnown: true,
       totalOwed: breakdown.totalOwed,
       installment: breakdown.installment,
       paid: 1,
@@ -131,7 +149,7 @@ export const simulatedAdapter: ChainAdapter = {
     };
     s.loans.unshift(loan);
     save(s);
-    return loan;
+    return { loan, sig: null };
   },
 
   async payNextInstallment(loanId) {
@@ -153,7 +171,7 @@ export const simulatedAdapter: ChainAdapter = {
       s.credit.repaidCount += 1;
     }
     save(s);
-    return { ...loan };
+    return { sig: null };
   },
 
   async forceDue(loanId) {
@@ -163,11 +181,15 @@ export const simulatedAdapter: ChainAdapter = {
     if (loan.status !== "Active") throw new Error(`Loan is ${loan.status}`);
     loan.nextDue = Date.now();
     save(s);
-    return { ...loan };
+    return { sig: null };
   },
 
   async listLoans() {
     return load().loans.map((l) => ({ ...l }));
+  },
+
+  async getLoanTxs(loanId) {
+    return load().loans.find((l) => l.id === loanId)?.txs ?? [];
   },
 
   async payInFull(amount) {
@@ -186,4 +208,5 @@ export const simulatedAdapter: ChainAdapter = {
   async getMerchantAddress() {
     return load().merchant;
   },
-};
+  };
+}

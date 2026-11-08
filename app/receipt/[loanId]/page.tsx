@@ -2,28 +2,41 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ExternalLink, FastForward, Loader2, Store } from "lucide-react";
 import { useChain, useCurrency } from "@/components/providers";
 import { Row, shortAddr } from "@/components/ui";
 import { BreakdownRows, LoanSchedule, countdown, useNow } from "@/components/finance";
-import { explorerAddr, explorerTx } from "@/lib/chain";
+import { explorerAddr, explorerTx, type TxRecord } from "@/lib/chain";
 import { INSTALLMENTS } from "@/lib/pricing";
 
 export default function Receipt() {
   const { loanId } = useParams<{ loanId: string }>();
-  const { loans, ready, adapter, refresh, mode, merchantBalance } = useChain();
+  const { loans, ready, adapter, refresh, mode, merchantBalance, connected } = useChain();
   const { fmt } = useCurrency();
   const now = useNow();
   const [busy, setBusy] = useState<"collect" | "ff" | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [txs, setTxs] = useState<TxRecord[]>([]);
+  const [lastSig, setLastSig] = useState<string | null>(null);
+
+  const loadTxs = useCallback(async () => {
+    try {
+      setTxs(await adapter.getLoanTxs(loanId));
+    } catch {
+      /* RPC hiccup: schedule still shows paid state from the loan account */
+    }
+  }, [adapter, loanId]);
+  useEffect(() => {
+    if (connected) loadTxs();
+  }, [connected, loadTxs]);
 
   const loan = loans.find((l) => l.id === loanId);
   if (!ready) return <div className="card h-64 animate-pulse" />;
   if (!loan)
     return (
       <div className="card p-6">
-        Loan not found in this browser.{" "}
+        {connected ? "Loan not found for this wallet." : "Connect the wallet that took this loan."}{" "}
         <Link href="/" className="underline">
           Dashboard
         </Link>
@@ -31,16 +44,17 @@ export default function Receipt() {
     );
 
   const due = loan.status === "Active" && now >= loan.nextDue;
-  const realFee = loan.txs.find((t) => t.kind === "create")?.feeLamports ?? null;
-  const createSig = loan.txs.find((t) => t.kind === "create")?.sig;
+  const realFee = txs.find((t) => t.kind === "create")?.feeLamports ?? null;
+  const createSig = txs.find((t) => t.kind === "create")?.sig;
 
   async function act(kind: "collect" | "ff") {
     setBusy(kind);
     setErr(null);
     try {
-      if (kind === "collect") await adapter.payNextInstallment(loan!.id);
-      else await adapter.forceDue(loan!.id);
+      const r = kind === "collect" ? await adapter.payNextInstallment(loan!.id) : await adapter.forceDue(loan!.id);
+      setLastSig(r.sig);
       await refresh();
+      await loadTxs();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -61,7 +75,7 @@ export default function Receipt() {
         </div>
         <span
           className={`rounded-full px-3 py-1 text-sm font-medium ${
-            loan.status === "Repaid" ? "bg-ok/10 text-ok" : loan.status === "Defaulted" ? "bg-accent-soft text-accent" : "bg-fg text-white"
+            loan.status === "Repaid" ? "bg-ok/10 text-ok" : loan.status === "Defaulted" ? "bg-accent-soft text-accent" : "bg-fg text-bg"
           }`}
         >
           {loan.status} · {loan.paid}/{INSTALLMENTS}
@@ -72,7 +86,12 @@ export default function Receipt() {
         <section className="grid content-start gap-4">
           <div className="card p-5">
             <p className="mb-3 text-sm font-semibold">Schedule</p>
-            <LoanSchedule loan={loan} />
+            <LoanSchedule loan={loan} txs={txs} />
+            {lastSig && mode === "devnet" && (
+              <a href={explorerTx(lastSig)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs underline underline-offset-4">
+                Last action on Explorer <ExternalLink size={12} />
+              </a>
+            )}
             {err && <p className="mt-3 rounded-xl bg-accent-soft p-3 text-sm text-accent">{err}</p>}
             {loan.status === "Active" && (
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -82,7 +101,7 @@ export default function Receipt() {
                 </button>
                 <button className="btn btn-ghost text-base" onClick={() => act("ff")} disabled={due || busy != null}>
                   {busy === "ff" ? <Loader2 size={18} className="animate-spin" /> : <FastForward size={18} />}
-                  Fast-forward (demo)
+                  Fast-forward (demo admin)
                 </button>
               </div>
             )}
@@ -95,9 +114,14 @@ export default function Receipt() {
 
           <div className="card p-5">
             <p className="mb-2 text-sm font-semibold">Exact fee breakdown</p>
-            <BreakdownRows b={loan.breakdown} networkFeeLamports={realFee} />
+            <BreakdownRows b={loan.breakdown} networkFeeLamports={realFee} splitKnown={loan.splitKnown} />
             <p className="mt-2 text-xs text-muted">
-              {mode === "devnet" ? "Network fee read from the checkout transaction." : "Network fee is an estimate (simulated mode)."}
+              {mode === "devnet"
+                ? realFee == null
+                  ? "Network fee: loading from the checkout transaction…"
+                  : "Network fee read from the checkout transaction, paid by your wallet in SOL."
+                : "LOCAL DEV: network fee is an estimate."}
+              {!loan.splitKnown && " Item and delivery are shown combined: only their sum is stored on-chain."}
             </p>
           </div>
         </section>

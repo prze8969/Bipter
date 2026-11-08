@@ -11,8 +11,8 @@ export const INTEREST_BPS = 150;
 export const INSTALLMENTS = 4;
 /** Demo interval between installments, seconds. Must match the on-chain Pool.interval_secs. */
 export const INTERVAL_SECS = 60;
-/** Estimated network fee for a sponsored tx: 2 signatures x 5000 lamports. Shown separately, paid by the app. */
-export const EST_NETWORK_FEE_LAMPORTS = 10_000;
+/** Estimated network fee: 1 signature x 5000 lamports, paid in SOL by the buyer's wallet. Real fee is read from the tx. */
+export const EST_NETWORK_FEE_LAMPORTS = 5_000;
 
 export type Product = {
   id: string;

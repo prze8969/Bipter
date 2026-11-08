@@ -1,5 +1,6 @@
-/* Screenshot every page at 390px and 1280px, run a simulated buy, and report console errors.
- * Usage: start the app (npm run start), then `npm run screenshots`. Output: ./screenshots (gitignored). */
+/* Screenshot every page in light + dark at 390px and 1280px and report console errors.
+ * Playwright has no wallet extension, so pages are captured in the not-connected state.
+ * Usage: npm run start (or dev), then `npm run screenshots`. Output: ./screenshots (gitignored). */
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 
@@ -7,50 +8,45 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const OUT = "screenshots";
 mkdirSync(OUT, { recursive: true });
 
+const PAGES: [string, string][] = [
+  ["dashboard", "/"],
+  ["store", "/store"],
+  ["product", "/product/mech-keyboard"],
+  ["cart", "/cart"],
+  ["receipt", "/receipt/11111111111111111111111111111111"],
+];
+
 async function main() {
   const browser = await chromium.launch();
   const errors: string[] = [];
-  for (const width of [390, 1280]) {
-    const ctx = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } });
-    const page = await ctx.newPage();
-    page.on("console", (m) => m.type() === "error" && errors.push(`[${width}] ${page.url()} ${m.text()}`));
-    page.on("pageerror", (e) => errors.push(`[${width}] ${page.url()} ${e.message}`));
-
-    const shot = async (name: string) => {
-      await page.waitForTimeout(500);
-      await page.screenshot({ path: `${OUT}/${name}-${width}.png`, fullPage: true });
-    };
-
-    await page.goto(BASE + "/");
-    await page.getByRole("button", { name: "Add fake money" }).click();
-    await page.getByText("+100 test USDC added").waitFor();
-    await shot("dashboard");
-
-    await page.goto(BASE + "/store");
-    await shot("store");
-
-    await page.goto(BASE + "/product/earbuds");
-    await shot("product");
-    await page.getByRole("button", { name: "Add to cart" }).click();
-    await page.getByRole("button", { name: "Buy now, pay later" }).click();
-    await shot("checkout-modal");
-    await page.getByRole("button", { name: /Confirm and pay/ }).click();
-    await page.waitForURL(/\/receipt\//);
-    await shot("receipt");
-    await page.getByRole("button", { name: /Fast-forward/ }).click();
-    await page.getByRole("button", { name: "Collect next installment" }).click();
-    await page.getByText("Active · 2/4").waitFor();
-    await shot("receipt-after-collect");
-
-    await page.goto(BASE + "/cart");
-    await shot("cart");
-
-    await page.goto(BASE + "/");
-    await shot("dashboard-with-loan");
-    await ctx.close();
+  let n = 0;
+  for (const theme of ["light", "dark"] as const) {
+    for (const width of [390, 1280]) {
+      const ctx = await browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 }, colorScheme: theme });
+      await ctx.addInitScript((t) => {
+        localStorage.setItem("bipter.theme", t);
+        localStorage.setItem("bipter.cart.v1", JSON.stringify([{ productId: "earbuds", qty: 1, plan: "full" }, { productId: "backpack", qty: 1, plan: "pay4" }]));
+      }, theme);
+      const page = await ctx.newPage();
+      page.on("console", (m) => m.type() === "error" && errors.push(`[${theme} ${width}] ${page.url()} ${m.text()}`));
+      page.on("pageerror", (e) => errors.push(`[${theme} ${width}] ${page.url()} ${e.message}`));
+      for (const [name, path] of PAGES) {
+        await page.goto(BASE + path, { waitUntil: "networkidle" });
+        await page.waitForTimeout(400);
+        await page.screenshot({ path: `${OUT}/${name}-${theme}-${width}.png`, fullPage: true });
+        n++;
+      }
+      // checkout modal (shows connect prompt without a wallet)
+      await page.goto(BASE + "/product/mech-keyboard", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Buy now, pay later" }).click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${OUT}/checkout-${theme}-${width}.png` });
+      n++;
+      await ctx.close();
+    }
   }
   await browser.close();
-  console.log(`Screenshots in ./${OUT}`);
+  console.log(`${n} screenshots in ./${OUT}`);
   console.log(errors.length ? `CONSOLE ERRORS (${errors.length}):\n${errors.join("\n")}` : "No console errors.");
   process.exit(errors.length ? 1 : 0);
 }
