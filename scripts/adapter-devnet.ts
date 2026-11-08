@@ -23,6 +23,11 @@ async function main() {
 
   const wallet = {
     publicKey: buyer.publicKey,
+    // sign-only path (what the app now prefers); sendTransaction kept as the fallback
+    signTransaction: async <T extends Transaction | VersionedTransaction>(tx: T) => {
+      (tx as Transaction).partialSign(buyer);
+      return tx;
+    },
     sendTransaction: async (tx: Transaction | VersionedTransaction, c: Connection) => {
       (tx as Transaction).partialSign(buyer);
       return c.sendRawTransaction((tx as Transaction).serialize());

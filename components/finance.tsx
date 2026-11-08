@@ -8,7 +8,7 @@ import { explorerTx, type Loan, type TxRecord } from "@/lib/chain";
 import { INSTALLMENTS, INTERVAL_SECS, type Breakdown } from "@/lib/pricing";
 import { Row, WalletButton } from "./ui";
 
-export const PHANTOM_HINT = "Phantom: Settings > Developer Settings > Testnet Mode";
+export const PHANTOM_HINT = "Recommended: Phantom (or Solflare). In Phantom: Settings > Developer Settings > Testnet Mode > Devnet";
 
 /* ---------------- time ---------------- */
 

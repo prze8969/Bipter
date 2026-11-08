@@ -32,6 +32,12 @@ Last updated: Sun 8 Nov 2026, ~21:10 IST.
 | `npm run check:catalog` | ⚠️ | `7 products, 0 verified, 0 failing.` | No Amazon snapshots (human task) |
 | Playwright light + dark, 390 + 1280 | ✅ (not connected) | `24 screenshots`, `No console errors.` | Connected states not screenshot-tested |
 
+## Wallet notes (21:20)
+- MetaMask's Solana snap crashed during checkout (`The Snap "npm:@metamask/solana-wallet-snap" has been terminated during execution`). The app now asks the wallet to **sign only** and broadcasts the transaction itself (falls back to sign-and-send). This path is verified on-chain by `test:adapter`: 2 loans created + 1 installment collected, 8 PASS. The run then hit `Connection rate limits exceeded` on the public devnet RPC before its last 3 checks.
+- MetaMask snap errors now show a plain message ("Nothing was charged. Try again, or use Phantom / Solflare"). Wallet errors are no longer logged as console errors (no Next.js dev overlay).
+- **Phantom is the recommended wallet** (connect screen + checkout hint). Not re-tested with MetaMask after the change.
+- The public devnet RPC rate-limits (429s seen in e2e and adapter tests). For the demo, a private devnet RPC in `NEXT_PUBLIC_RPC_URL` is safer.
+
 ## Known broken / not verified
 - **Connected wallet UI not clicked through** with a real Phantom/Solflare extension. The adapter logic behind it is tested on-chain (above), but wallet popups, the connect modal and the UI refresh after each transaction are not.
 - `/api/sol` depends on the sponsor's SOL (≈0.7 SOL left, 0.2 per request). Once empty, users must use faucet.solana.com (the error message links to it).

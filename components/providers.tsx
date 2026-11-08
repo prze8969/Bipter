@@ -83,7 +83,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <ConnectionProvider endpoint={RPC_URL} config={{ commitment: "confirmed" }}>
-        <WalletProvider wallets={wallets} autoConnect>
+        <WalletProvider wallets={wallets} autoConnect onError={onWalletError}>
           <WalletModalProvider>
             <AppState>{children}</AppState>
           </WalletModalProvider>
@@ -91,6 +91,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </ConnectionProvider>
     </ThemeProvider>
   );
+}
+
+/** Wallet errors are shown in the UI (checkout / dashboard); log a warning instead of the default console.error overlay. */
+function onWalletError(e: Error) {
+  console.warn(`[wallet] ${e.name}: ${e.message}`);
 }
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -116,14 +121,14 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 function AppState({ children }: { children: React.ReactNode }) {
   const { connection } = useConnection();
   const wallet = useWallet();
-  const { publicKey, sendTransaction } = wallet;
+  const { publicKey, sendTransaction, signTransaction } = wallet;
 
   const adapter = useMemo(
     () =>
       CHAIN_MODE === "simulated"
         ? createSimulatedAdapter(publicKey)
-        : createDevnetAdapter(connection, { publicKey, sendTransaction }),
-    [connection, publicKey, sendTransaction],
+        : createDevnetAdapter(connection, { publicKey, sendTransaction, signTransaction }),
+    [connection, publicKey, sendTransaction, signTransaction],
   );
   const missing = useMemo(() => (CHAIN_MODE === "devnet" ? missingConfig() : []), []);
 

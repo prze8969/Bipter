@@ -36,7 +36,9 @@ export function friendlyError(e: unknown): Error {
   }
   if (/insufficient lamports|insufficient funds for fee|Attempt to debit an account but found no record/i.test(msg))
     return new Error("Not enough devnet SOL for network fees. Use “Get devnet SOL”.");
-  if (/User rejected/i.test(msg)) return new Error("Transaction rejected in wallet");
+  if (/User rejected|rejected the request/i.test(msg)) return new Error("Transaction rejected in wallet");
+  if (/Snap .*terminated|solana-wallet-snap/i.test(msg))
+    return new Error("MetaMask's Solana snap crashed while signing. Nothing was charged. Try again, or use Phantom / Solflare (more reliable on devnet).");
   return e instanceof Error ? e : new Error(msg);
 }
 
@@ -47,7 +49,7 @@ async function postJson(url: string, body: unknown) {
   return json;
 }
 
-type Wallet = Pick<WalletContextState, "publicKey" | "sendTransaction">;
+type Wallet = Pick<WalletContextState, "publicKey" | "sendTransaction"> & Partial<Pick<WalletContextState, "signTransaction">>;
 
 export function createDevnetAdapter(connection: Connection, wallet: Wallet): ChainAdapter {
   const cfg = () => {
@@ -67,7 +69,15 @@ export function createDevnetAdapter(connection: Connection, wallet: Wallet): Cha
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
     tx.recentBlockhash = blockhash;
     try {
-      const sig = await wallet.sendTransaction(tx, connection);
+      // Prefer sign-only: the wallet just signs, the app broadcasts. Less work inside the wallet
+      // (MetaMask's Solana snap has crashed on sign-and-send), and preflight errors come back with program logs.
+      let sig: string;
+      if (wallet.signTransaction) {
+        const signed = await wallet.signTransaction(tx);
+        sig = await connection.sendRawTransaction(signed.serialize(), { preflightCommitment: "confirmed", maxRetries: 3 });
+      } else {
+        sig = await wallet.sendTransaction(tx, connection);
+      }
       const conf = await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
       if (conf.value.err) throw new Error(`Transaction failed: ${JSON.stringify(conf.value.err)}`);
       return sig;
