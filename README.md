@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bipter — Pay in 4 on Solana
 
-## Getting Started
+Buy Now Pay Later store on Solana (MLH Solana Hackathon, DeFi track).
 
-First, run the development server:
+The merchant is paid in full instantly from a USDC liquidity pool. The buyer pays 4 equal installments; installments 2–4 are pulled automatically through a **capped SPL token delegation** (exactly 3 × installment). A Solana payment costs a fraction of a cent instead of ~3% + a fixed fee for cards, so the saving goes to the buyer. Every loan has a public receipt with the exact fee breakdown (and Explorer links in devnet mode).
+
+> **Current state: Simulated mode.** The UI runs on an in-browser adapter that enforces the same rules as the on-chain program. The devnet adapter is not wired yet (see `STATUS.md`).
+
+## Real vs mocked
+
+| Part | Status |
+|---|---|
+| Money in the wallet | Devnet **test USDC** (real SPL token, no real value). In simulated mode: a number in your browser |
+| Wallet | Keypair auto-generated in the browser, kept in localStorage. No login, no auth (prototype) |
+| Loans, installments, credit limit | Real devnet program in devnet mode; **simulated** (same rules) in simulated mode |
+| Network fees | Sponsored by the app (gasless for the user) |
+| Products and delivery | Demo listings. Nothing ships |
+| Amazon comparison | Dated snapshot with a source link, illustrative. **Hidden until a human verifies the values** |
+| Currency display | Local currency from browser locale/timezone, FX rate for display only |
+
+## Pricing
+
+`total = item + delivery + platform fee (1%) + interest (1.5% flat)`, rounded up to a multiple of 4 micro-USDC (rounding goes into interest). Network fee is shown separately and paid by Bipter. Pay in full = item + delivery + 1% fee, no interest. Constants live in `lib/pricing.ts`.
+
+## Run
 
 ```bash
+npm install
+cp .env.example .env.local   # NEXT_PUBLIC_CHAIN_MODE=simulated works with no other values
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Checks:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build && npx tsc --noEmit && npm run lint
+npm run check:catalog        # our total < Amazon total for every verified product
+npm run start & npm run screenshots   # Playwright screenshots at 390px + 1280px, fails on console errors
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Program
 
-## Learn More
+`program/lib.rs` (Anchor). Build and deploy it in [Solana Playground](https://beta.solpg.io), devnet. Accounts: `Pool ["pool"]`, vault `["vault"]`, `CreditProfile ["credit", buyer]`, `Loan ["loan", buyer, nonce]`, `LpPosition ["lp", owner]`. Instructions: `init_pool`, `init_lp`, `deposit`, `init_credit`, `create_loan`, `pay_installment`, `admin_force_due`, `mark_default`.
 
-To learn more about Next.js, take a look at the following resources:
+## 60-second demo (simulated)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Dashboard → **Add fake money** (+100 test USDC, shown in your local currency).
+2. **Test it on the store** → open a product → Fee X-ray shows every cent.
+3. **Buy now, pay later** → checkout modal → receipt. Merchant panel shows "paid at checkout" in full.
+4. **Fast-forward (demo)** → **Collect next installment** ×3 → loan Repaid, credit limit 100 → 125 USDC.
