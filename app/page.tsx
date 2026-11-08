@@ -1,103 +1,78 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from "next/link";
+import { useState } from "react";
+import { ArrowRight, Loader2, Plus } from "lucide-react";
+import { useChain, useCurrency } from "@/components/providers";
+import { CurrencySwitcher, shortAddr } from "@/components/ui";
+import { CreditMeter, LoanList } from "@/components/finance";
+import { explorerAddr } from "@/lib/chain";
+import { formatUsdc } from "@/lib/pricing";
+
+export default function Dashboard() {
+  const { ready, balance, wallet, adapter, refresh, mode, error } = useChain();
+  const { fmt, code } = useCurrency();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function addMoney() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await adapter.faucet();
+      await refresh();
+      setMsg("+100 test USDC added");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="grid gap-6">
+      <section className="card p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted">Balance</p>
+          <CurrencySwitcher />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <p className="mt-3 text-5xl font-semibold tracking-tight tabular-nums sm:text-6xl">
+          {ready ? fmt(balance) : <span className="inline-block h-14 w-48 animate-pulse rounded-xl bg-line align-middle" />}
+        </p>
+        <p className="mt-2 text-sm text-muted tabular-nums">
+          = {formatUsdc(balance)} USDC{code !== "USD" ? " · converted for display only" : ""}
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Wallet{" "}
+          {mode === "devnet" && wallet ? (
+            <a className="underline underline-offset-4" href={explorerAddr(wallet)} target="_blank" rel="noreferrer">
+              {shortAddr(wallet)}
+            </a>
+          ) : (
+            <span className="font-mono">{shortAddr(wallet)}</span>
+          )}{" "}
+          · generated in this browser
+        </p>
+        {error && <p className="mt-3 rounded-xl bg-accent-soft p-3 text-sm text-accent">{error}</p>}
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <button className="btn btn-dark text-base" onClick={addMoney} disabled={busy}>
+            {busy ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+            Add fake money
+          </button>
+          <Link href="/store" className="btn btn-primary text-base">
+            Test it on the store <ArrowRight size={18} />
+          </Link>
+        </div>
+        {msg && <p className="mt-3 text-sm text-muted">{msg}</p>}
+      </section>
+
+      <CreditMeter />
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold">Active loans</h2>
+        <LoanList only="active" />
+      </section>
     </div>
   );
 }
